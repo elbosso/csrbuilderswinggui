@@ -39,13 +39,13 @@ package de.elbosso.tools.csrbuilderswinggui;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 
-enum DnSpec
+public enum DnSpec
 {
 	CountryName("countryName", BCStyle.C),
 	StateOrProvince("stateOrProvinceName",BCStyle.ST),
 	Locality("localityName",BCStyle.L),
 	Organization("organizationName",BCStyle.O),
-	OrnanizationalUnit("organizationalUnitName",BCStyle.OU),
+	OrganizationalUnit("organizationalUnitName",BCStyle.OU),
 	CN("commonName",BCStyle.CN),
 	EMail("emailAddress",BCStyle.EmailAddress);
 
