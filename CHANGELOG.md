@@ -3,6 +3,13 @@
 Changelog of this project.
 
 
+            **re #1**
+
+
+            [45303d03ef2daea](https://github.com/<user>/<project>>/commit/45303d03ef2daea) Jürgen Key *2021-03-06 08:37:54*
+
+
+
             **automated maven release management**
 
 
