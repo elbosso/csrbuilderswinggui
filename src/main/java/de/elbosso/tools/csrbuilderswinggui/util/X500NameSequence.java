@@ -36,18 +36,16 @@
 
 package de.elbosso.tools.csrbuilderswinggui.util;
 
+import ch.qos.logback.classic.Level;
 import de.elbosso.tools.csrbuilderswinggui.DnSpec;
 import de.elbosso.util.generator.semantics.LandmarkNameSequence;
 import de.elbosso.util.generator.semantics.NameEMailAddressBundleSequence;
 import de.elbosso.util.generator.semantics.RandomCountryCodeSequence;
 import de.netsysit.util.lang.Tupel;
-import org.apache.log4j.Level;
-
-import java.security.Principal;
 
 public class X500NameSequence extends Object implements de.netsysit.util.generator.Sequence<org.bouncycastle.asn1.x500.X500Name >
 {
-	private final static org.apache.log4j.Logger CLASS_LOGGER = org.apache.log4j.Logger.getLogger(X500NameSequence.class);
+	private final static org.slf4j.Logger CLASS_LOGGER = org.slf4j.LoggerFactory.getLogger(X500NameSequence.class);
 	private final static java.util.ResourceBundle i18n=java.util.ResourceBundle.getBundle("de.netsysit.util.i18n",java.util.Locale.getDefault());
 	private boolean allowsNull;
 	private final de.netsysit.util.generator.generalpurpose.BiasedBooleanSequence doublebool;
@@ -206,7 +204,7 @@ public class X500NameSequence extends Object implements de.netsysit.util.generat
 		tis.setIncludeEMail(true);
 		for(int i=0;i<30;++i)
 		{
-			if (CLASS_LOGGER.isDebugEnabled()) CLASS_LOGGER.debug(tis.next());
+			if (CLASS_LOGGER.isDebugEnabled()) CLASS_LOGGER.debug(java.util.Objects.toString(tis.next()));
 		}
 	}
 }

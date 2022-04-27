@@ -10,6 +10,28 @@ Changelog of this project.
 
 
 
+            **change of repository location for de.elbosso artifacts**
+
+
+            [8219cf928595f33](https://github.com/<user>/<project>>/commit/8219cf928595f33) Jürgen Key *2021-09-12 15:32:00*
+
+            **Bump bcprov-jdk15on from 1.60 to 1.67**
+
+                * Bumps [bcprov-jdk15on](https://github.com/bcgit/bc-java) from 1.60 to 1.67.
+                * - [Release notes](https://github.com/bcgit/bc-java/releases)
+                * - [Changelog](https://github.com/bcgit/bc-java/blob/master/docs/releasenotes.html)
+                * - [Commits](https://github.com/bcgit/bc-java/commits)
+                * ---
+                * updated-dependencies:
+                * - dependency-name: org.bouncycastle:bcprov-jdk15on
+                * dependency-type: direct:production
+                * ...
+                * Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+
+            [23068c450e60298](https://github.com/<user>/<project>>/commit/23068c450e60298) dependabot[bot] *2021-08-13 15:34:31*
+
+
+
             **automated maven release management**
 
 
