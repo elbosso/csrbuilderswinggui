@@ -2,3 +2,5 @@
 target
 *~
 /release.properties
+/java-runtime/
+*.conf

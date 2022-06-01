@@ -37,9 +37,12 @@
 package de.elbosso.tools.csrbuilderswinggui;
 
 import de.elbosso.ui.components.Inet4AddressPanel;
+import de.elbosso.util.pattern.command.PrepareEmailAction;
+import de.elbosso.util.pattern.command.PrepareEmailConfImpl;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.operator.OperatorCreationException;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -59,6 +62,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 	private OpenSSLConfParser openSSLConfParser;
 	private CSRBuilder gcsr;
 	private de.netsysit.util.pattern.command.ChooseFileAction action;
+	private javax.swing.Action sendAction;
 	private javax.swing.JPasswordField passwordf;
 	private javax.swing.JPasswordField verificationf;
 	private java.util.Map<java.lang.String, de.netsysit.util.validator.Rule> ruleMap;
@@ -97,7 +101,6 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			pw = new javax.swing.JPasswordField();
 			pw.getDocument().addDocumentListener(this);
 			pw.addFocusListener(this);
-			rule = new de.netsysit.util.validator.rules.MinMaxLengthRule(6, Integer.MAX_VALUE);
 			//		de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(pw,rule);
 			ruleMap.put("verification", rule);
 			verificationf = pw;
@@ -120,6 +123,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			javax.swing.JToolBar tb = new javax.swing.JToolBar();
 			tb.setFloatable(false);
 			tb.add(action);
+			tb.add(sendAction);
 			toplevel.add(tb, BorderLayout.NORTH);
 			setContentPane(toplevel);
 			fp.setPreferredSize(new java.awt.Dimension(fp.getPreferredSize().width + 228, fp.getPreferredSize().height));
@@ -154,20 +158,14 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 //					pw.close();
 					//openssl rsa -noout -text -in /tmp/secret.key
 
-					X500NameBuilder x500NameBld = new X500NameBuilder(BCStyle.INSTANCE);
-					for (DnSpec spec : openSSLConfParser.getDnSpecs())
-					{
-						x500NameBld = x500NameBld.addRDN(spec.getStyle(), spec.getDef());
-					}
-					X500Name subject = x500NameBld.build();
-
 					zipEntry = new ZipEntry(openSSLConfParser.getId() + ".csr");
 					zipOut.putNextEntry(zipEntry);
 					pw = new java.io.OutputStreamWriter(zipOut);
-					gcsr.writeCSRPEM(pw, subject, openSSLConfParser.generate(gcsr.getKeypair().getPublic()));
+					writeCSR(pw);
 					pw.close();
 					zipOut.close();
 					fos.close();
+					sendAction.setEnabled(true);
 				}
 				catch (java.lang.Throwable t)
 				{
@@ -183,7 +181,44 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 		action.setSaveDialog(true);
 		action.setParent(CSRBuilderGui.this);
 		action.setDefaultFileEnding(".zip");
+		sendAction=new javax.swing.AbstractAction("send",de.netsysit.util.ResourceLoader.getIcon("de/elbosso/ressources/gfx/tango/Mail-message_48.png"))
+		{
+			@Override
+			public void actionPerformed(ActionEvent e)
+			{
+				try
+				{
+					java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+					java.io.PrintWriter pw = new java.io.PrintWriter(baos);
+					X500Name x500Name=writeCSR(pw);
+					pw.close();
+					baos.close();
+					PrepareEmailConfImpl mailConfig=new PrepareEmailConfImpl();
+					mailConfig.setSubject(x500Name.toString());
+					mailConfig.setContent(baos.toString());
+					PrepareEmailAction act=new PrepareEmailAction(mailConfig);
+					de.elbosso.util.Utilities.performAction(this,act);
+				}
+				catch(java.lang.Throwable t)
+				{
+					de.elbosso.util.Utilities.handleException(null,t);
+				}
+			}
+		};
+		sendAction.setEnabled(false);
 		updateState();
+	}
+	private X500Name writeCSR(java.io.Writer pw) throws IOException, OperatorCreationException
+	{
+		X500NameBuilder x500NameBld = new X500NameBuilder(BCStyle.INSTANCE);
+		for (DnSpec spec : openSSLConfParser.getDnSpecs())
+		{
+			x500NameBld = x500NameBld.addRDN(spec.getStyle(), spec.getDef());
+		}
+		X500Name subject = x500NameBld.build();
+
+		gcsr.writeCSRPEM(pw, subject, openSSLConfParser.generate(gcsr.getKeypair().getPublic()));
+		return subject;
 	}
 	private void updateState()
 	{
@@ -191,7 +226,6 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 		cond=passwordf.getPassword().length>0;
 		if(cond)
 			cond=java.util.Arrays.equals(passwordf.getPassword(),verificationf.getPassword());
-		action.setEnabled(cond);
 
 		if(fp!=null)
 		{
@@ -203,11 +237,19 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 				java.lang.String ts = de.netsysit.util.validator.Utilities.formatFailures(rule, tf.getText());
 //				System.out.println(key+" "+rule+" "+tf.getText()+" "+ts);
 				if (ts != null)
+				{
 					fp.decorateErrorProperty(key, ts);
+					cond=false;
+				}
 				else
+				{
 					fp.decorateNothingProperty(key);
+				}
 			}
 		}
+		action.setEnabled(cond);
+		if(action.isEnabled()==false)
+			sendAction.setEnabled(false);
 	}
 	public static void main(String[] args) throws Exception
 	{

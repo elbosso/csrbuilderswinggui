@@ -98,7 +98,6 @@ public class OpenSSLConfParser extends java.lang.Object
 
 	private int keyLengthInBits;
 	private java.util.LinkedList<DnSpec> dnSpecs;
-	private ExtensionsGenerator extGen = new ExtensionsGenerator();
 	private java.lang.String id;
 	private java.util.prefs.Preferences extensionsNode;
 	private java.util.prefs.Preferences dnNode;
@@ -141,6 +140,7 @@ public class OpenSSLConfParser extends java.lang.Object
 	}
 	public Extensions generate(java.security.PublicKey publicKey) throws IOException, OperatorCreationException
 	{
+		ExtensionsGenerator extGen = new ExtensionsGenerator();
 		java.lang.String keyUsages=get(extensionsNode,"keyUsage","-");
 		if(keyUsages.equals("-")==false)
 		{
