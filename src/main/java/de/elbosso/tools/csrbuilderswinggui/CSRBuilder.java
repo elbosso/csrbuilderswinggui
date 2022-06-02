@@ -106,10 +106,9 @@ public class CSRBuilder {
 	{
 		// construct encryptor builder to encrypt the private key
 		// provider is needed for the encryptor builder
-		Security.addProvider(new BouncyCastleProvider());
 		JceOpenSSLPKCS8EncryptorBuilder encryptorBuilder = new JceOpenSSLPKCS8EncryptorBuilder(PKCS8Generator.AES_256_CBC);
 		encryptorBuilder.setRandom(new SecureRandom());
-		encryptorBuilder.setPasssword("password".toCharArray());
+		encryptorBuilder.setPasssword(password);
 		OutputEncryptor encryptor = encryptorBuilder.build();
 
 		// construct object to create the PKCS8 object from the private key and encryptor

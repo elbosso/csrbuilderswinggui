@@ -64,7 +64,7 @@ following RDNs are supported - if present in the used configuration file:
 * SurName
 * SerialNumber
 * StreetAddress
-* Title
+* Title 
 * GivenName
 * UserID
 * DomainComponent

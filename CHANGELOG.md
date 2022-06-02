@@ -24,6 +24,13 @@ Changelog of this project.
 
 
 
+            **fixes #7**
+
+
+            [fb93d8ca8ce998a](https://github.com/<user>/<project>>/commit/fb93d8ca8ce998a) Juergen Key *2022-06-02 07:34:37*
+
+
+
             **re #1**
 
 

@@ -36,25 +36,36 @@
 
 package de.elbosso.tools.csrbuilderswinggui;
 
-import de.elbosso.ui.components.Inet4AddressPanel;
 import de.elbosso.util.pattern.command.PrepareEmailAction;
 import de.elbosso.util.pattern.command.PrepareEmailConfImpl;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.awt.event.*;
+import java.io.*;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Security;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Collection;
+import java.util.Enumeration;
 import java.util.prefs.BackingStoreException;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.event.DocumentListener
@@ -64,10 +75,11 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 	private CSRBuilder gcsr;
 	private de.netsysit.util.pattern.command.ChooseFileAction action;
 	private javax.swing.Action sendAction;
+	private javax.swing.Action buildP12Action;
 	private javax.swing.JPasswordField passwordf;
 	private javax.swing.JPasswordField verificationf;
 	private java.util.Map<java.lang.String, de.netsysit.util.validator.Rule> ruleMap;
-	private de.netsysit.ui.components.FormPanel fp;
+	private de.netsysit.ui.components.FormPanel formPanel;
 
 	public CSRBuilderGui() throws IOException, BackingStoreException
 	{
@@ -90,7 +102,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			openSSLConfParser = new OpenSSLConfParser(fc.getSelectedFile().toURI().toURL());
 			gcsr = new CSRBuilder(openSSLConfParser.getKeyLengthInBits());
 
-			fp = new de.netsysit.ui.components.FormPanel(new java.awt.Insets(5, 0, 5, 0));
+			formPanel = new de.netsysit.ui.components.FormPanel(new java.awt.Insets(5, 0, 5, 0));
 			javax.swing.JPasswordField pw = new javax.swing.JPasswordField();
 			pw.getDocument().addDocumentListener(this);
 			pw.addFocusListener(this);
@@ -98,19 +110,19 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			//		de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(pw,rule);
 			ruleMap.put("password", rule);
 			passwordf = pw;
-			fp.addRow("password", "password", pw);
+			formPanel.addRow("password", "password", pw);
 			pw = new javax.swing.JPasswordField();
 			pw.getDocument().addDocumentListener(this);
 			pw.addFocusListener(this);
 			//		de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(pw,rule);
 			ruleMap.put("verification", rule);
 			verificationf = pw;
-			fp.addRow("verification", "verification", pw);
+			formPanel.addRow("verification", "verification", pw);
 			for (DnSpec spec : openSSLConfParser.getDnSpecs())
 			{
 				javax.swing.JTextField tf = new javax.swing.JTextField();
 				tf.addFocusListener(this);
-				fp.addRow(spec.getName(), spec.getName(), tf);
+				formPanel.addRow(spec.getName(), spec.getName(), tf);
 				tf.setText(spec.getDef());
 				tf.getDocument().addDocumentListener(this);
 				de.netsysit.util.validator.rules.MinMaxLengthRule mmrule = new de.netsysit.util.validator.rules.MinMaxLengthRule(spec.getMinChars(), spec.getMaxChars());
@@ -120,14 +132,15 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 
 			createActions();
 			javax.swing.JPanel toplevel = new javax.swing.JPanel(new java.awt.BorderLayout());
-			toplevel.add(fp);
+			toplevel.add(formPanel);
 			javax.swing.JToolBar tb = new javax.swing.JToolBar();
 			tb.setFloatable(false);
 			tb.add(action);
 			tb.add(sendAction);
+			tb.add(buildP12Action);
 			toplevel.add(tb, BorderLayout.NORTH);
 			setContentPane(toplevel);
-			fp.setPreferredSize(new java.awt.Dimension(fp.getPreferredSize().width + 228, fp.getPreferredSize().height));
+			formPanel.setPreferredSize(new java.awt.Dimension(formPanel.getPreferredSize().width + 228, formPanel.getPreferredSize().height));
 			pack();
 			updateState();
 			setVisible(true);
@@ -207,6 +220,132 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			}
 		};
 		sendAction.setEnabled(false);
+		buildP12Action=new AbstractAction(null,de.netsysit.util.ResourceLoader.getIcon("png/action/account_circle/materialicons/48dp/1x/baseline_account_circle_black_48dp.png"))
+		{
+			@Override
+			public void actionPerformed(ActionEvent e)
+			{
+				try
+				{
+					File archivefile=null;//new File("/home/elbosso/abc.zip");
+					JFileChooser jfc=new JFileChooser();
+					jfc.setSelectedFile(archivefile);
+					jfc.setDialogTitle("Select archive containing private key!");
+					if(jfc.showOpenDialog(formPanel)==jfc.CANCEL_OPTION)
+						return;
+					archivefile=jfc.getSelectedFile();
+
+					File deliverablesfile=null;//new File("/home/elbosso/work/expect-dialog-ca.git/_priv/unpacked/deliverables_Amy Wong Kroker_2021-05-09_07-32-05.zip");
+//					jfc.setSelectedFile(deliverablesfile);
+					jfc.setDialogTitle("Select archive containing deliverables from the CA!");
+					if(jfc.showOpenDialog(formPanel)==jfc.CANCEL_OPTION)
+						return;
+					deliverablesfile=jfc.getSelectedFile();
+
+					File p12file=null;//new File("p12.p12");
+//					jfc.setSelectedFile(p12file);
+					jfc.setDialogTitle("Specify name for the resultinmg P12!");
+					if(jfc.showSaveDialog(formPanel)==jfc.CANCEL_OPTION)
+						return;
+					p12file=jfc.getSelectedFile();
+
+					javax.swing.JPasswordField pwf=new javax.swing.JPasswordField();
+					pwf.setActionCommand("OK");
+					pwf.addActionListener(new ActionListener()
+					{
+						@Override
+						public void actionPerformed(ActionEvent e)
+						{
+							if (e.getActionCommand() == "OK")
+							{
+								// https://stackoverflow.com/a/51356151/1020871
+								SwingUtilities.getWindowAncestor(((JComponent) e.getSource())).dispose();
+							}
+						}
+					});
+					javax.swing.JOptionPane.showOptionDialog(null, pwf,
+					"Enter Password",
+							JOptionPane.DEFAULT_OPTION,
+							JOptionPane.PLAIN_MESSAGE,
+							null, new Object[0], null);
+
+					ZipFile zipFile = new ZipFile(archivefile);
+
+					Enumeration<? extends ZipEntry> entries = zipFile.entries();
+
+					PrivateKey privateKey=null;
+					X509Certificate cer=null;
+					Collection<Certificate> c=null;
+
+					while(entries.hasMoreElements()){
+						ZipEntry entry = entries.nextElement();
+						if(entry.getName().equals("private.key"))
+						{
+
+							InputStream stream = zipFile.getInputStream(entry);
+							java.io.InputStreamReader isr=new InputStreamReader(stream);
+							PEMParser keyReader = new PEMParser(isr);
+
+							JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+							InputDecryptorProvider decryptionProv = new JceOpenSSLPKCS8DecryptorProviderBuilder().build(pwf.getPassword());
+
+							org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo encrypted=(org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo)keyReader.readObject();
+							PrivateKeyInfo keyInfo = encrypted.decryptPrivateKeyInfo(decryptionProv);
+							privateKey = converter.getPrivateKey(keyInfo);
+
+							isr.close();
+							stream.close();
+							break;
+						}
+					}
+
+					zipFile = new ZipFile(deliverablesfile);
+
+					entries = zipFile.entries();
+
+					while(entries.hasMoreElements())
+					{
+						ZipEntry entry = entries.nextElement();
+						if (entry.getName().endsWith("issuer.crt"))
+						{
+							CertificateFactory fact = CertificateFactory.getInstance("X.509");
+							InputStream is = zipFile.getInputStream(entry);
+							CertificateFactory cf = CertificateFactory.getInstance("X.509");
+							c = (Collection<Certificate>)cf.generateCertificates(is);
+						}
+						else if (entry.getName().endsWith(".crt"))
+						{
+
+							CertificateFactory fact = CertificateFactory.getInstance("X.509");
+							InputStream is = zipFile.getInputStream(entry);
+							cer = (X509Certificate) fact.generateCertificate(is);
+							PublicKey key = cer.getPublicKey();
+							is.close();
+						}
+					}
+					Certificate[] certs=new Certificate[c.size()+1];
+					int i=0;
+					certs[i]=cer;
+					++i;
+					for(Certificate cert:c)
+					{
+						certs[i]=cert;
+						++i;
+					}
+					KeyStore ks = KeyStore.getInstance("PKCS12");
+					ks.load(null, null);
+					ks.setKeyEntry(cer.getIssuerDN().getName(), privateKey, pwf.getPassword(),
+							certs);
+					java.io.FileOutputStream fos=new java.io.FileOutputStream(p12file);
+					ks.store(fos, pwf.getPassword());
+					fos.close();
+				}
+				catch(java.lang.Throwable t)
+				{
+					de.elbosso.util.Utilities.handleException(null,t);
+				}
+			}
+		};
 		updateState();
 	}
 	private X500Name writeCSR(java.io.Writer pw) throws IOException, OperatorCreationException
@@ -230,23 +369,23 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			cond = java.util.Arrays.equals(passwordf.getPassword(), verificationf.getPassword());
 		}
 
-		if(fp!=null)
+		if(formPanel !=null)
 		{
 			for (java.lang.String key : ruleMap.keySet())
 			{
-				javax.swing.JTextField tf = fp.fetchJTextField(key);
+				javax.swing.JTextField tf = formPanel.fetchJTextField(key);
 				de.netsysit.util.validator.Rule rule = ruleMap.get(key);
 //				System.out.println(key+" "+rule);
 				java.lang.String ts = de.netsysit.util.validator.Utilities.formatFailures(rule, tf.getText());
 //				System.out.println(key+" "+rule+" "+tf.getText()+" "+ts);
 				if (ts != null)
 				{
-					fp.decorateErrorProperty(key, ts);
+					formPanel.decorateErrorProperty(key, ts);
 					cond=false;
 				}
 				else
 				{
-					fp.decorateNothingProperty(key);
+					formPanel.decorateNothingProperty(key);
 				}
 			}
 		}
@@ -254,7 +393,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 		{
 			if(java.util.Arrays.equals(passwordf.getPassword(), verificationf.getPassword())==false)
 			{
-				fp.decorateErrorProperty("verification", "Passwords do not match!");
+				formPanel.decorateErrorProperty("verification", "Passwords do not match!");
 			}
 		}
 
@@ -264,6 +403,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 	}
 	public static void main(String[] args) throws Exception
 	{
+		Security.addProvider(new BouncyCastleProvider());
 //		de.elbosso.util.Utilities.configureBasicStdoutLogging(Level.ALL);
 		try
 		{
