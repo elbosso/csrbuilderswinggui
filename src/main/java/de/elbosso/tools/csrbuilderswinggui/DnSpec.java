@@ -46,6 +46,15 @@ public enum DnSpec
 	Locality("localityName",BCStyle.L),
 	Organization("organizationName",BCStyle.O),
 	OrganizationalUnit("organizationalUnitName",BCStyle.OU),
+	SurName("surname",BCStyle.SURNAME),
+	SerialNumber("serialNumber",BCStyle.SERIALNUMBER),
+	StreetAddress("streetAddress",BCStyle.STREET),
+	Title("title",BCStyle.T),
+	GivenName("givenName",BCStyle.GIVENNAME),
+	UserID("userID",BCStyle.UID),
+	DomainComponent("domainComponent",BCStyle.DC),
+//	("",BCStyle.),
+//	("",BCStyle.),
 	CN("commonName",BCStyle.CN),
 	EMail("emailAddress",BCStyle.EmailAddress);
 

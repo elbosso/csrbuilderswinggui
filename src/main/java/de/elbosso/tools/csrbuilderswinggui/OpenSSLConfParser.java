@@ -40,6 +40,7 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.cert.X509ExtensionUtils;
 import org.bouncycastle.operator.DigestCalculator;
@@ -123,6 +124,7 @@ public class OpenSSLConfParser extends java.lang.Object
 		extensionsNode=prefs.node(get(reqNode,"req_extensions",null));
 		dnNode=prefs.node(get(reqNode,"distinguished_name",null));
 		keyLengthInBits=getInt(reqNode,"default_bits",4096);
+//		System.out.println(+" "+BCStyle.CN.toString());
 		dnSpecs=new java.util.LinkedList();
 		for(DnSpec spec: DnSpec.values())
 		{
@@ -133,6 +135,7 @@ public class OpenSSLConfParser extends java.lang.Object
 				dnSpecs.add(spec);
 				spec.setDef(unquote(get(dnNode,spec.getName()+"_default","")));
 				spec.setMaxChars(getInt(dnNode,spec.getName()+"_max", Integer.MAX_VALUE));
+				spec.setMinChars(getInt(dnNode,spec.getName()+"_min", 0));
 			}
 		}
 		id=get(reqNode,"distinguished_name",null);

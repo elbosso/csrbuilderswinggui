@@ -52,6 +52,25 @@ The second phase begins once the CA has sent the certificate back:
 * combination of the public and private key with the certificate to create
 a digital identity in the form of a PKCS#12 container.
 
+The form that is presented for the user to fill out does ask questions
+about the individual RDNs making up the CN for the certificate. Currently, the
+following RDNs are supported - if present in the used configuration file:
+
+* CountryName
+* StateOrProvince
+* Locality
+* Organization
+* OrganizationalUnit
+* SurName
+* SerialNumber
+* StreetAddress
+* Title
+* GivenName
+* UserID
+* DomainComponent
+* CommonName
+* EMailAddress
+
 ## Build
 
 The project can be built and executed using this command

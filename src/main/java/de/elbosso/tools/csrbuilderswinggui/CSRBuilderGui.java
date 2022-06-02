@@ -53,6 +53,7 @@ import java.awt.event.FocusEvent;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.prefs.BackingStoreException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -68,7 +69,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 	private java.util.Map<java.lang.String, de.netsysit.util.validator.Rule> ruleMap;
 	private de.netsysit.ui.components.FormPanel fp;
 
-	public CSRBuilderGui() throws IOException
+	public CSRBuilderGui() throws IOException, BackingStoreException
 	{
 		super("CSRBuilder");
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -225,7 +226,9 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 		boolean cond=false;
 		cond=passwordf.getPassword().length>0;
 		if(cond)
-			cond=java.util.Arrays.equals(passwordf.getPassword(),verificationf.getPassword());
+		{
+			cond = java.util.Arrays.equals(passwordf.getPassword(), verificationf.getPassword());
+		}
 
 		if(fp!=null)
 		{
@@ -247,6 +250,14 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 				}
 			}
 		}
+		if(passwordf.getPassword().length>0)
+		{
+			if(java.util.Arrays.equals(passwordf.getPassword(), verificationf.getPassword())==false)
+			{
+				fp.decorateErrorProperty("verification", "Passwords do not match!");
+			}
+		}
+
 		action.setEnabled(cond);
 		if(action.isEnabled()==false)
 			sendAction.setEnabled(false);
