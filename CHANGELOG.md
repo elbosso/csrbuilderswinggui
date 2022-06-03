@@ -24,6 +24,13 @@ Changelog of this project.
 
 
 
+            **fixes #6**
+
+
+            [b522e83ded831d5](https://github.com/<user>/<project>>/commit/b522e83ded831d5) Juergen Key *2022-06-02 10:16:59*
+
+
+
             **fixes #7**
 
 

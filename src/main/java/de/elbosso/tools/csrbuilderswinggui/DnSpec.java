@@ -63,6 +63,7 @@ public enum DnSpec
 	private int minChars;
 	private String def="";
 	private ASN1ObjectIdentifier style;
+	private String description;
 
 	DnSpec(String name, ASN1ObjectIdentifier style)
 	{
@@ -114,6 +115,16 @@ public enum DnSpec
 	public int getMinChars()
 	{
 		return minChars;
+	}
+
+	public String getDescription()
+	{
+		return description;
+	}
+
+	public void setDescription(String description)
+	{
+		this.description = description;
 	}
 
 	@Override

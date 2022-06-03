@@ -38,10 +38,15 @@ package de.elbosso.tools.csrbuilderswinggui;
 
 import de.elbosso.util.pattern.command.PrepareEmailAction;
 import de.elbosso.util.pattern.command.PrepareEmailConfImpl;
+import de.netsysit.model.list.SophisticatedListModel;
+import de.netsysit.util.ObjectCreator;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
@@ -61,8 +66,8 @@ import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Collection;
-import java.util.Enumeration;
+import java.util.*;
+import java.util.List;
 import java.util.prefs.BackingStoreException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -80,6 +85,8 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 	private javax.swing.JPasswordField verificationf;
 	private java.util.Map<java.lang.String, de.netsysit.util.validator.Rule> ruleMap;
 	private de.netsysit.ui.components.FormPanel formPanel;
+	private JList l=new JList();
+	private SophisticatedListModel slm=new SophisticatedListModel(l);
 
 	public CSRBuilderGui() throws IOException, BackingStoreException
 	{
@@ -124,6 +131,8 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 				tf.addFocusListener(this);
 				formPanel.addRow(spec.getName(), spec.getName(), tf);
 				tf.setText(spec.getDef());
+				if((spec.getDescription()!=null)&&(spec.getDescription().trim().length()>0))
+					tf.setToolTipText(spec.getDescription());
 				tf.getDocument().addDocumentListener(this);
 				de.netsysit.util.validator.rules.MinMaxLengthRule mmrule = new de.netsysit.util.validator.rules.MinMaxLengthRule(spec.getMinChars(), spec.getMaxChars());
 				//			de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(tf,mmrule);
@@ -132,7 +141,37 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 
 			createActions();
 			javax.swing.JPanel toplevel = new javax.swing.JPanel(new java.awt.BorderLayout());
-			toplevel.add(formPanel);
+			if(openSSLConfParser.isHassSAN()==false)
+			{
+				toplevel.add(formPanel);
+			}
+			else
+			{
+				slm.setObjectCreator(new ObjectCreator()
+				{
+					@Override
+					public Object create()
+					{
+						return JOptionPane.showInputDialog("Enter Subject Alternative Name!");
+					}
+				});
+				javax.swing.JPanel p=new javax.swing.JPanel(new java.awt.GridLayout(1,2));
+				p.add(formPanel);
+				javax.swing.JPanel pp=new JPanel(new BorderLayout());
+				javax.swing.JToolBar tb = new javax.swing.JToolBar();
+				tb.setFloatable(false);
+				tb.add(slm.getAddElementAction());
+				tb.addSeparator();
+				tb.add(slm.getRemoveElementAction());
+				tb.add(slm.getRemoveAllButSelectedAction());
+				tb.add(slm.getRemoveAllAction());
+				pp.add(tb,BorderLayout.NORTH);
+				pp.add(new JScrollPane(l));
+				pp.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createEtchedBorder(),"Subject Alternative Names"));
+				p.add(pp);
+				toplevel.add(p);
+			}
+			formPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createEtchedBorder(),"Distinguished Name"));
 			javax.swing.JToolBar tb = new javax.swing.JToolBar();
 			tb.setFloatable(false);
 			tb.add(action);
@@ -351,13 +390,17 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 	private X500Name writeCSR(java.io.Writer pw) throws IOException, OperatorCreationException
 	{
 		X500NameBuilder x500NameBld = new X500NameBuilder(BCStyle.INSTANCE);
+//		System.out.println(openSSLConfParser.getDnSpecs().size());
 		for (DnSpec spec : openSSLConfParser.getDnSpecs())
 		{
-			x500NameBld = x500NameBld.addRDN(spec.getStyle(), spec.getDef());
+			x500NameBld = x500NameBld.addRDN(spec.getStyle(), formPanel.fetchJTextField(spec.getName()).getText());
 		}
 		X500Name subject = x500NameBld.build();
 
-		gcsr.writeCSRPEM(pw, subject, openSSLConfParser.generate(gcsr.getKeypair().getPublic()));
+		List list=new LinkedList(slm.getAsList());
+		if(openSSLConfParser.isCopyEmailToSan())
+			list.add(formPanel.fetchJTextField(DnSpec.EMail.getName()).getText());
+		gcsr.writeCSRPEM(pw, subject, openSSLConfParser.generate(gcsr.getKeypair().getPublic(),list));
 		return subject;
 	}
 	private void updateState()

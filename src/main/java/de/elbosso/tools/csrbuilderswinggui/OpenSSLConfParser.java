@@ -36,6 +36,7 @@
 
 package de.elbosso.tools.csrbuilderswinggui;
 
+import de.netsysit.model.list.SophisticatedListModel;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DEROctetString;
@@ -47,6 +48,7 @@ import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.bc.BcDigestCalculatorProvider;
 
+import javax.swing.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -102,6 +104,8 @@ public class OpenSSLConfParser extends java.lang.Object
 	private java.lang.String id;
 	private java.util.prefs.Preferences extensionsNode;
 	private java.util.prefs.Preferences dnNode;
+	private boolean hassSAN;
+	private boolean copyEmailToSan;
 
 	public OpenSSLConfParser(java.net.URL url) throws java.io.IOException
 	{
@@ -118,6 +122,12 @@ public class OpenSSLConfParser extends java.lang.Object
 		super();
 		init(new org.ini4j.IniPreferences(in));
 	}
+
+	public boolean isHassSAN()
+	{
+		return hassSAN;
+	}
+
 	private void init(java.util.prefs.Preferences prefs) throws IOException
 	{
 		java.util.prefs.Preferences reqNode=prefs.node("req");
@@ -136,12 +146,31 @@ public class OpenSSLConfParser extends java.lang.Object
 				spec.setDef(unquote(get(dnNode,spec.getName()+"_default","")));
 				spec.setMaxChars(getInt(dnNode,spec.getName()+"_max", Integer.MAX_VALUE));
 				spec.setMinChars(getInt(dnNode,spec.getName()+"_min", 0));
+				spec.setDescription(unquote(get(dnNode,spec.getName(),"")));
 			}
 		}
 		id=get(reqNode,"distinguished_name",null);
+		java.lang.String extendedKeyUsages=get(extensionsNode,"extendedKeyUsage","-");
+		java.lang.String subjectAltNameExtension=get(extensionsNode,"subjectAltName","-");
+		if(subjectAltNameExtension.equals("-")==false)
+		{
+			/*
+			 * Add SubjectAlternativeNames (SANs)
+			 */
+			if (extendedKeyUsages.contains("serverAuth"))
+			{
+				hassSAN=true;
+			}
+			else
+			if (subjectAltNameExtension.contains("email:move") == true)
+			{
+				hassSAN=true;
+				copyEmailToSan=true;
+			}
+		}
 
 	}
-	public Extensions generate(java.security.PublicKey publicKey) throws IOException, OperatorCreationException
+	public Extensions generate(java.security.PublicKey publicKey, List l) throws IOException, OperatorCreationException
 	{
 		ExtensionsGenerator extGen = new ExtensionsGenerator();
 		java.lang.String keyUsages=get(extensionsNode,"keyUsage","-");
@@ -209,8 +238,11 @@ public class OpenSSLConfParser extends java.lang.Object
 			if(extendedKeyUsages.contains("serverAuth"))
 			{
 				List<GeneralName> namesList = new ArrayList<>();
-				GeneralName gn = new GeneralName(GeneralName.dNSName, "example.org");
-				namesList.add(gn);
+				for(Object ref:l)
+				{
+					GeneralName gn = new GeneralName(GeneralName.dNSName, ref.toString());
+					namesList.add(gn);
+				}
 				GeneralNames subjectAltNames = new GeneralNames(namesList.toArray(new GeneralName[]{}));
 				extGen.addExtension(Extension.subjectAlternativeName, subjectAltNameExtension.contains("critical"), subjectAltNames);
 			}
@@ -221,8 +253,11 @@ public class OpenSSLConfParser extends java.lang.Object
 					if (get(dnNode, "emailAddress", "-").equals("-") == false)
 					{
 						List<GeneralName> namesList = new ArrayList<>();
-						GeneralName gn = new GeneralName(GeneralName.rfc822Name, get(dnNode, "emailAddress_default", ""));
-						namesList.add(gn);
+						for(Object ref:l)
+						{
+							GeneralName gn = new GeneralName(GeneralName.rfc822Name, ref.toString());
+							namesList.add(gn);
+						}
 						GeneralNames subjectAltNames = new GeneralNames(namesList.toArray(new GeneralName[]{}));
 						extGen.addExtension(Extension.subjectAlternativeName, subjectAltNameExtension.contains("critical"), subjectAltNames);
 					}
@@ -245,6 +280,11 @@ public class OpenSSLConfParser extends java.lang.Object
 	public String getId()
 	{
 		return id;
+	}
+
+	public boolean isCopyEmailToSan()
+	{
+		return copyEmailToSan;
 	}
 
 	private int getInt(java.util.prefs.Preferences prefs, java.lang.String key, int def)
