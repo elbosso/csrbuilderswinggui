@@ -117,6 +117,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			//		de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(pw,rule);
 			ruleMap.put("password", rule);
 			passwordf = pw;
+			formPanel.addSeparator("privkeypwsection","Private Key Password");
 			formPanel.addRow("password", "password", pw);
 			pw = new javax.swing.JPasswordField();
 			pw.getDocument().addDocumentListener(this);
@@ -125,6 +126,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			ruleMap.put("verification", rule);
 			verificationf = pw;
 			formPanel.addRow("verification", "verification", pw);
+			formPanel.addSeparator("dnsection","Distinguished Name");
 			for (DnSpec spec : openSSLConfParser.getDnSpecs())
 			{
 				javax.swing.JTextField tf = new javax.swing.JTextField();
@@ -138,7 +140,21 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 				//			de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(tf,mmrule);
 				ruleMap.put(spec.getName(), mmrule);
 			}
-
+			if((openSSLConfParser.getAttSpecs()!=null)&&(openSSLConfParser.getAttSpecs().isEmpty()==false))
+			{
+				formPanel.addSeparator("attsection","Custom Attributes");
+				for (AttSpec spec : openSSLConfParser.getAttSpecs())
+				{
+					javax.swing.JTextField tf = new javax.swing.JTextField();
+					tf.addFocusListener(this);
+					formPanel.addRow(spec.getName(), spec.getName(), tf);
+					tf.setText(spec.getDef());
+					tf.getDocument().addDocumentListener(this);
+					de.netsysit.util.validator.rules.MinMaxLengthRule mmrule = new de.netsysit.util.validator.rules.MinMaxLengthRule(spec.getMinChars(), spec.getMaxChars());
+					//			de.netsysit.util.validator.Utilities.hookupTextComponentWithRule(tf,mmrule);
+					ruleMap.put(spec.getName(), mmrule);
+				}
+			}
 			createActions();
 			javax.swing.JPanel toplevel = new javax.swing.JPanel(new java.awt.BorderLayout());
 			if(openSSLConfParser.isHassSAN()==false)
@@ -396,11 +412,16 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			x500NameBld = x500NameBld.addRDN(spec.getStyle(), formPanel.fetchJTextField(spec.getName()).getText());
 		}
 		X500Name subject = x500NameBld.build();
+		java.util.Map<java.lang.String,java.lang.String> mapp=new java.util.HashMap();
+		for(AttSpec spec:openSSLConfParser.getAttSpecs())
+		{
+			mapp.put(spec.getName(),formPanel.fetchJTextField(spec.getName()).getText());
+		}
 
 		List list=new LinkedList(slm.getAsList());
 		if(openSSLConfParser.isCopyEmailToSan())
 			list.add(formPanel.fetchJTextField(DnSpec.EMail.getName()).getText());
-		gcsr.writeCSRPEM(pw, subject, openSSLConfParser.generate(gcsr.getKeypair().getPublic(),list));
+		gcsr.writeCSRPEM(pw, subject, openSSLConfParser.generate(gcsr.getKeypair().getPublic(),list),mapp,openSSLConfParser.getAdditionalOIDs());
 		return subject;
 	}
 	private void updateState()
@@ -453,6 +474,7 @@ public class CSRBuilderGui extends javax.swing.JFrame implements javax.swing.eve
 			java.util.Properties iconFallbacks = new java.util.Properties();
 			java.io.InputStream is=de.netsysit.util.ResourceLoader.getResource("de/elbosso/ressources/data/icon_trans_material.properties").openStream();
 			iconFallbacks.load(is);
+
 			is.close();
 			de.netsysit.util.ResourceLoader.configure(iconFallbacks);
 		}

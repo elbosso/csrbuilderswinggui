@@ -53,7 +53,7 @@ WENN SIE AUF DIE MOEGLICHKEIT EINES SOLCHEN SCHADENS HINGEWIESEN WORDEN SIND.
         <maven.compiler.source>${project.custom.java.version}</maven.compiler.source>
         <maven.compiler.target>${project.custom.java.version}</maven.compiler.target>
       <project.scm.id>elbossos-github</project.scm.id>
-        <elbosso.artifacts.version>1.8.0</elbosso.artifacts.version>
+        <elbosso.artifacts.version>2.1.0-SNAPSHOT</elbosso.artifacts.version>
     </properties>
   <build>
         <pluginManagement>

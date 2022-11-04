@@ -38,6 +38,13 @@ Changelog of this project.
 
 
 
+            **support for attributes added**
+
+
+            [9d21132bdd208aa](https://github.com/<user>/<project>>/commit/9d21132bdd208aa) Jürgen Key *2022-11-04 07:33:56*
+
+
+
             **re #1**
 
 

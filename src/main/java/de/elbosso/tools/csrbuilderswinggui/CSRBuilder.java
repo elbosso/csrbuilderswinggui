@@ -38,30 +38,24 @@ package de.elbosso.tools.csrbuilderswinggui;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.security.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.DEROctetString;
-import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x500.X500NameBuilder;
+import org.bouncycastle.asn1.x500.style.BCStrictStyle;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.*;
-import org.bouncycastle.cert.X509ExtensionUtils;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
 import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.OutputEncryptor;
-import org.bouncycastle.operator.bc.BcDigestCalculatorProvider;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
@@ -76,6 +70,7 @@ import org.bouncycastle.util.io.pem.PemObject;
 //https://www.javatips.net/api/org.bouncycastle.cert.x509extensionutils
 
 public class CSRBuilder {
+	private final static java.util.regex.Pattern oidpattern=java.util.regex.Pattern.compile("^([0-2])((\\.0)|(\\.[1-9][0-9]*))*$");
 	private KeyPairGenerator keyGen;
 	private KeyPair keypair;
 
@@ -123,7 +118,7 @@ public class CSRBuilder {
 		w.write(stringWriter.toString()+"\n");
 	}
 
-	public void writeCSRPEM(java.io.Writer w,X500Name subject, Extensions extensions) throws OperatorCreationException, IOException
+	public void writeCSRPEM(Writer w, X500Name subject, Extensions extensions, Map<String, String> attMap, Map<String, String> additionalOIDs) throws OperatorCreationException, IOException
 	{
 		PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
 				subject, keypair.getPublic());
@@ -133,6 +128,51 @@ public class CSRBuilder {
 		 * Use ExtensionsGenerator to add individual extensions.
 		 */
 		p10Builder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extensions);
+		p10Builder.addAttribute(new ASN1ObjectIdentifier("1.2.3.4.5"), new DERUTF8String("Attribute"));
+		BCStyle bcStyle=new BCStrictStyle();
+		for(Map.Entry<java.lang.String,java.lang.String> entry: attMap.entrySet())
+		{
+			if(entry.getKey().equalsIgnoreCase("challengePassword"))
+				p10Builder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_challengePassword, new DERUTF8String(entry.getValue()));
+			else
+			{
+				try
+				{
+					ASN1ObjectIdentifier oid=bcStyle.attrNameToOID(entry.getKey());
+					if(oid!=null)
+						p10Builder.addAttribute(oid, new DERUTF8String(entry.getValue()));
+					else
+					{
+						System.out.println("did not find oid for " + entry.getKey());
+						if(additionalOIDs.containsKey(entry.getKey()))
+							p10Builder.addAttribute(new ASN1ObjectIdentifier(additionalOIDs.get(entry.getKey())), new DERUTF8String(entry.getValue()));
+						else
+						{
+							if (oidpattern.matcher(entry.getKey()).matches())
+							{
+								p10Builder.addAttribute(new ASN1ObjectIdentifier(entry.getKey()), new DERUTF8String(entry.getValue()));
+							}
+						}
+					}
+				}
+				catch(Exception exp)
+				{
+					exp.printStackTrace();
+					if(additionalOIDs.containsKey(entry.getKey()))
+						p10Builder.addAttribute(new ASN1ObjectIdentifier(additionalOIDs.get(entry.getKey())), new DERUTF8String(entry.getValue()));
+					else
+					{
+						if (oidpattern.matcher(entry.getKey()).matches())
+						{
+							p10Builder.addAttribute(new ASN1ObjectIdentifier(entry.getKey()), new DERUTF8String(entry.getValue()));
+						}
+					}
+				}
+			}
+		}
+
+		//PKCSObjectIdentifiers.pkcs_9_at_challengePassword
+		//https://javadoc.io/static/org.bouncycastle/bcprov-jdk15on/1.70/org/bouncycastle/asn1/x500/style/BCStyle.html#attrNameToOID-java.lang.String-
 
 		PKCS10CertificationRequest csr = p10Builder.build(signer);
 		JcaPEMWriter writer=new JcaPEMWriter(w);

@@ -53,6 +53,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public class OpenSSLConfParser extends java.lang.Object
 {
@@ -100,12 +101,15 @@ public class OpenSSLConfParser extends java.lang.Object
 	}
 
 	private int keyLengthInBits;
+	private java.util.List<AttSpec> attSpecs;
 	private java.util.LinkedList<DnSpec> dnSpecs;
 	private java.lang.String id;
 	private java.util.prefs.Preferences extensionsNode;
+	private java.util.prefs.Preferences attributesNode;
 	private java.util.prefs.Preferences dnNode;
 	private boolean hassSAN;
 	private boolean copyEmailToSan;
+	private java.util.Map<java.lang.String, java.lang.String>additionalOIDs;
 
 	public OpenSSLConfParser(java.net.URL url) throws java.io.IOException
 	{
@@ -131,7 +135,29 @@ public class OpenSSLConfParser extends java.lang.Object
 	private void init(java.util.prefs.Preferences prefs) throws IOException
 	{
 		java.util.prefs.Preferences reqNode=prefs.node("req");
+		java.util.prefs.Preferences defaultNode=prefs.node("default");
+		if(defaultNode!=null)
+		{
+			java.util.prefs.Preferences additionalOIDsNode=prefs.node(get(defaultNode,"oid_section",null));
+			if(additionalOIDsNode!=null)
+			{
+				additionalOIDs=new java.util.HashMap();
+				try
+				{
+					for (java.lang.String key : additionalOIDsNode.keys())
+					{
+						additionalOIDs.put(key,additionalOIDsNode.get(key,key));
+					}
+				}
+				catch(java.util.prefs.BackingStoreException exp)
+				{
+					de.elbosso.util.Utilities.handleException(null,exp);
+				}
+			}
+		}
 		extensionsNode=prefs.node(get(reqNode,"req_extensions",null));
+		attributesNode=prefs.node(get(reqNode,"attributes",null));
+		System.out.println("attributesNode "+attributesNode);
 		dnNode=prefs.node(get(reqNode,"distinguished_name",null));
 		keyLengthInBits=getInt(reqNode,"default_bits",4096);
 //		System.out.println(+" "+BCStyle.CN.toString());
@@ -168,7 +194,30 @@ public class OpenSSLConfParser extends java.lang.Object
 				copyEmailToSan=true;
 			}
 		}
+		attSpecs=new java.util.LinkedList();
+		try
+		{
+			for (java.lang.String key : attributesNode.keys())
+			{
+				if(key.contains("_")==false)
+				{
+					AttSpec spec=new AttSpec(key);
+					spec.setDef(unquote(get(attributesNode,spec.getName()+"_default","")));
+					spec.setMaxChars(getInt(attributesNode,spec.getName()+"_max", Integer.MAX_VALUE));
+					spec.setMinChars(getInt(attributesNode,spec.getName()+"_min", 0));
+					attSpecs.add(spec);
+				}
+			}
+		}
+		catch(java.util.prefs.BackingStoreException exp)
+		{
+			de.elbosso.util.Utilities.handleException(null,exp);
+		}
+	}
 
+	public Map<String, String> getAdditionalOIDs()
+	{
+		return additionalOIDs;
 	}
 	public Extensions generate(java.security.PublicKey publicKey, List l) throws IOException, OperatorCreationException
 	{
@@ -275,6 +324,11 @@ public class OpenSSLConfParser extends java.lang.Object
 	public LinkedList<DnSpec> getDnSpecs()
 	{
 		return dnSpecs;
+	}
+
+	public List<AttSpec> getAttSpecs()
+	{
+		return attSpecs;
 	}
 
 	public String getId()

@@ -36,12 +36,12 @@
 
 package de.elbosso.tools.csrbuilderswinggui.util;
 
-import ch.qos.logback.classic.Level;
 import de.elbosso.tools.csrbuilderswinggui.DnSpec;
 import de.elbosso.util.generator.semantics.LandmarkNameSequence;
 import de.elbosso.util.generator.semantics.NameEMailAddressBundleSequence;
 import de.elbosso.util.generator.semantics.RandomCountryCodeSequence;
 import de.netsysit.util.lang.Tupel;
+import org.slf4j.event.Level;
 
 public class X500NameSequence extends Object implements de.netsysit.util.generator.Sequence<org.bouncycastle.asn1.x500.X500Name >
 {
@@ -199,7 +199,7 @@ public class X500NameSequence extends Object implements de.netsysit.util.generat
 	}
 	public static void main (String[] args)
 	{
-		de.elbosso.util.Utilities.configureBasicStdoutLogging(Level.ALL);
+		de.elbosso.util.Utilities.configureBasicStdoutLogging(Level.INFO);
 		X500NameSequence tis=new X500NameSequence();
 		tis.setIncludeEMail(true);
 		for(int i=0;i<30;++i)
