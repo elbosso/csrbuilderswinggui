@@ -41,7 +41,12 @@ Changelog of this project.
             **support for attributes added**
 
 
-            [9d21132bdd208aa](https://github.com/<user>/<project>>/commit/9d21132bdd208aa) Jürgen Key *2022-11-04 07:33:56*
+            [b6859741a3e3038](https://github.com/<user>/<project>>/commit/b6859741a3e3038) Jürgen Key *2022-11-04 07:43:52*
+
+            **added supportfor more than one SAN**
+
+
+            [87fd398e65c8d54](https://github.com/<user>/<project>>/commit/87fd398e65c8d54) Your Name *2022-06-03 05:58:35*
 
 
 
